@@ -327,5 +327,3 @@ If asked “why did you design it this way?”:
 HNG DevOps Internship — Stage 4A
 
 ---
-🔥 Give you the **exact tricky questions graders will ask (and how to answer them confidently)**
-🎯 Or simulate a **real 1-on-1 defense session with you**
