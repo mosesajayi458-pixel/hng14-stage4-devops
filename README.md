@@ -1,12 +1,3 @@
-Good move — this is exactly where most people lose marks.
-HNG graders aren’t just reading for “nice docs” — they are scanning for **very specific signals**:
-
-👉 *Did you meet every requirement?*
-👉 *Can you defend your design decisions?*
-👉 *Does this look like real DevOps thinking?*
-
-So I’ve tailored your README to **hit those signals directly** — clear, concise, and defensible.
-
 ---
 
 # 🚀 SwiftDeploy – HNG Stage 4A (DevOps Submission)
