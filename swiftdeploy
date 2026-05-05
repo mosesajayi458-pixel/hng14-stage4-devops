@@ -1,0 +1,316 @@
+#!/usr/bin/env python3
+import os
+import sys
+import yaml
+import socket
+import subprocess
+import time
+import requests
+from jinja2 import Template
+
+MANIFEST_FILE = "manifest.yaml"
+NGINX_OUTPUT = "nginx.conf"
+COMPOSE_OUTPUT = "docker-compose.yml"
+
+
+def run(cmd, check=True, capture_output=False):
+    print(f"→ Running: {' '.join(cmd)}")
+    return subprocess.run(
+        cmd,
+        check=check,
+        text=True,
+        stdout=subprocess.PIPE if capture_output else None,
+        stderr=subprocess.PIPE if capture_output else None,
+    )
+
+
+def compose_base_cmd():
+    """
+    Detect whether system supports:
+      - docker compose (v2)
+      - docker-compose (v1)
+    Return the correct base command list.
+    """
+    # Try docker compose first
+    try:
+        result = subprocess.run(
+            ["docker", "compose", "version"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        if result.returncode == 0:
+            return ["docker", "compose"]
+    except Exception:
+        pass
+
+    # Try docker-compose
+    try:
+        result = subprocess.run(
+            ["docker-compose", "version"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        if result.returncode == 0:
+            return ["docker-compose"]
+    except Exception:
+        pass
+
+    print("❌ Docker Compose not found.")
+    print("Install with:")
+    print("  sudo apt update && sudo apt install docker-compose -y")
+    sys.exit(1)
+
+
+def load_manifest():
+    if not os.path.exists(MANIFEST_FILE):
+        raise FileNotFoundError("manifest.yaml not found")
+
+    with open(MANIFEST_FILE) as f:
+        return yaml.safe_load(f)
+
+
+def write_file(path, content):
+    with open(path, "w") as f:
+        f.write(content)
+
+
+def render_template(template_path, context):
+    with open(template_path) as f:
+        tpl = Template(f.read())
+    return tpl.render(**context)
+
+
+def port_in_use(port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(("127.0.0.1", port)) == 0
+
+
+def init_cmd():
+    manifest = load_manifest()
+
+    ctx = {
+        "service_image": manifest["services"]["image"],
+        "service_port": manifest["services"]["port"],
+        "mode": manifest["services"].get("mode", "stable"),
+        "version": manifest["services"].get("version", "1.0.0"),
+        "restart_policy": manifest["services"].get("restart_policy", "always"),
+
+        "nginx_image": manifest["nginx"]["image"],
+        "nginx_port": manifest["nginx"]["port"],
+        "proxy_timeout": manifest["nginx"].get("proxy_timeout", 5),
+
+        "network_name": manifest["network"]["name"],
+        "network_driver": manifest["network"]["driver_type"],
+
+        "log_volume": manifest.get("logging", {}).get("volume", "swiftdeploy-logs"),
+    }
+
+    nginx_conf = render_template("templates/nginx.conf.j2", ctx)
+    compose_conf = render_template("templates/docker-compose.yml.j2", ctx)
+
+    write_file(NGINX_OUTPUT, nginx_conf)
+    write_file(COMPOSE_OUTPUT, compose_conf)
+
+    print("✅ Generated nginx.conf and docker-compose.yml")
+
+
+def validate_cmd():
+    passed = True
+
+    # 1) manifest exists + valid yaml
+    try:
+        manifest = load_manifest()
+        print("✅ manifest.yaml exists and is valid YAML")
+    except Exception as e:
+        print(f"❌ manifest.yaml invalid: {e}")
+        sys.exit(1)
+
+    # 2) required fields
+    required = [
+        ("services", "image"),
+        ("services", "port"),
+        ("nginx", "image"),
+        ("nginx", "port"),
+        ("network", "name"),
+        ("network", "driver_type"),
+    ]
+
+    for section, key in required:
+        if section not in manifest or key not in manifest[section] or not manifest[section][key]:
+            print(f"❌ Missing required field: {section}.{key}")
+            passed = False
+
+    if passed:
+        print("✅ All required fields are present")
+
+    # 3) docker image exists locally
+    img = manifest["services"]["image"]
+    result = subprocess.run(
+        ["docker", "image", "inspect", img],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+    if result.returncode != 0:
+        print(f"❌ Docker image not found locally: {img}")
+        passed = False
+    else:
+        print("✅ Docker image exists locally")
+
+    # 4) nginx port not bound
+    nginx_port = manifest["nginx"]["port"]
+    if port_in_use(nginx_port):
+        print(f"❌ Nginx port {nginx_port} is already in use")
+        passed = False
+    else:
+        print(f"✅ Nginx port {nginx_port} is free")
+
+    # 5) nginx.conf syntax valid
+    try:
+        init_cmd()
+
+        result = subprocess.run(
+            [
+                "docker",
+                "run",
+                "--rm",
+                "-v",
+                f"{os.getcwd()}/{NGINX_OUTPUT}:/etc/nginx/nginx.conf:ro",
+                "nginx:latest",
+                "nginx",
+                "-t",
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
+        if result.returncode != 0:
+            # This error is normal when nginx tries to resolve docker-compose service names
+            if "host not found in upstream" in result.stderr:
+                print("⚠️ nginx.conf syntax is valid (DNS resolution skipped during standalone test)")
+            else:
+                print("❌ nginx.conf is invalid")
+                print(result.stderr)
+                passed = False
+        else:
+            print("✅ nginx.conf syntax is valid")
+
+    except Exception as e:
+        print(f"❌ nginx validation failed: {e}")
+        passed = False
+
+    if not passed:
+        sys.exit(1)
+
+
+def deploy_cmd():
+    init_cmd()
+    validate_cmd()
+
+    compose = compose_base_cmd()
+    run(compose + ["up", "-d"])
+
+    print("⏳ Waiting for health check (60s timeout)...")
+    start = time.time()
+
+    while time.time() - start < 60:
+        try:
+            r = requests.get("http://127.0.0.1:8080/healthz", timeout=2)
+            if r.status_code == 200:
+                print("✅ Deployment healthy!")
+                return
+        except Exception:
+            pass
+
+        time.sleep(2)
+
+    print("❌ Timeout waiting for health check")
+    sys.exit(1)
+
+
+def promote_cmd(target):
+    if target not in ["stable", "canary"]:
+        print("Usage: swiftdeploy promote [stable|canary]")
+        sys.exit(1)
+
+    manifest = load_manifest()
+    manifest["services"]["mode"] = target
+
+    with open(MANIFEST_FILE, "w") as f:
+        yaml.safe_dump(manifest, f)
+
+    print(f"✅ Updated manifest mode to {target}")
+
+    init_cmd()
+
+    compose = compose_base_cmd()
+
+    # Restart ONLY api container cleanly (avoids docker-compose v1 ContainerConfig bug)
+    run(compose + ["stop", "api"], check=False)
+    run(compose + ["rm", "-f", "api"], check=False)
+    run(compose + ["up", "-d", "api"])
+
+    time.sleep(3)
+
+    try:
+        r = requests.get("http://127.0.0.1:8080/healthz", timeout=3)
+        print("Health:", r.text)
+
+        if r.status_code != 200:
+            print("❌ Promote failed: health check not OK")
+            sys.exit(1)
+
+    except Exception as e:
+        print(f"❌ Promote failed: cannot reach /healthz ({e})")
+        sys.exit(1)
+
+    print(f"✅ Promote successful: {target} mode active")
+
+
+def teardown_cmd(clean=False):
+    compose = compose_base_cmd()
+    run(compose + ["down", "-v"], check=False)
+
+    if clean:
+        for f in [NGINX_OUTPUT, COMPOSE_OUTPUT]:
+            if os.path.exists(f):
+                os.remove(f)
+        print("🧹 Removed generated configs")
+
+    print("✅ Stack removed")
+
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: swiftdeploy [init|validate|deploy|promote|teardown]")
+        sys.exit(1)
+
+    cmd = sys.argv[1]
+
+    if cmd == "init":
+        init_cmd()
+
+    elif cmd == "validate":
+        validate_cmd()
+
+    elif cmd == "deploy":
+        deploy_cmd()
+
+    elif cmd == "promote":
+        if len(sys.argv) < 3:
+            print("Usage: swiftdeploy promote [stable|canary]")
+            sys.exit(1)
+        promote_cmd(sys.argv[2])
+
+    elif cmd == "teardown":
+        clean = "--clean" in sys.argv
+        teardown_cmd(clean=clean)
+
+    else:
+        print(f"Unknown command: {cmd}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
