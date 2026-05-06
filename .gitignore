@@ -1,0 +1,13 @@
+# SwiftDeploy generated files
+docker-compose.yml
+nginx.conf
+audit_report.md
+history.jsonl
+
+# Logs / volumes
+*.log
+logs/
+swiftdeploy-logs/
+
+# Policies generated data (optional if auto-generated)
+policies/data.json

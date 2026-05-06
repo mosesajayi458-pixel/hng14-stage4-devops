@@ -7,6 +7,13 @@ nginx:
   image: nginx:latest
   port: 8080
   proxy_timeout: 5
+opa:
+  image: openpolicyagent/opa:latest
+policy:
+  max_cpu_load: 2.0
+  max_error_rate: 0.01
+  max_p99_latency_ms: 500
+  min_disk_free_gb: 10
 services:
   image: swift-deploy-1-node:latest
   mode: canary

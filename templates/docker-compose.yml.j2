@@ -36,6 +36,27 @@ services:
       - {{ network_name }}
     restart: always
 
+  opa:
+    image: {{ opa_image }}
+    container_name: swiftdeploy-opa
+    command:
+      - "run"
+      - "--server"
+      - "--addr=0.0.0.0:8181"
+      - "--log-level=info"
+      - "/policies"
+    volumes:
+      - ./policies:/policies:ro
+    networks:
+      - {{ network_name }}
+    ports:
+      - "127.0.0.1:8181:8181"
+    restart: always
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
 networks:
   {{ network_name }}:
     driver: {{ network_driver }}
