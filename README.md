@@ -11,7 +11,16 @@ The platform is designed around modern DevOps principles including:
 * Observability and auditing
 * Secure container deployment
 
-SwiftDeploy automates the generation of infrastructure configuration, deployment execution, health validation, canary promotion workflows, Open Policy Agent (OPA) policy enforcement, metrics collection, audit reporting, and environment teardown.
+SwiftDeploy automates infrastructure configuration generation, deployment execution, health validation, canary promotion workflows, Open Policy Agent (OPA) policy enforcement, metrics collection, audit reporting, and environment teardown.
+
+---
+
+# 🚀 Blog Post
+
+A detailed breakdown of the architecture, implementation decisions, DevOps workflows, OPA governance integration, chaos engineering, and deployment pipeline design is available in the accompanying Medium article:
+
+🔗 **Medium Article:**
+[Building SwiftDeploy: A CLI Deployment Tool with Canary Releases, Chaos Engineering & Policy-as-Code](https://medium.com/@mosesajayi458/building-swiftdeploy-a-cli-deployment-tool-with-canary-releases-chaos-engineering-99b407796a1a?postPublishedType=repub&utm_source=chatgpt.com)
 
 ---
 
@@ -62,13 +71,53 @@ SwiftDeploy automates the generation of infrastructure configuration, deployment
 
 SwiftDeploy follows a declarative deployment workflow:
 
-1. `manifest.yaml` acts as the single source of truth.
-2. Jinja2 templates generate infrastructure configuration files.
-3. Validation checks ensure deployment readiness.
-4. OPA policies evaluate infrastructure and rollout conditions.
-5. Docker Compose provisions the stack.
-6. Health checks validate service readiness.
-7. Metrics and audit logs provide observability and traceability.
+1. `manifest.yaml` acts as the single source of truth
+2. Jinja2 templates generate infrastructure configuration files
+3. Validation checks ensure deployment readiness
+4. OPA policies evaluate infrastructure and rollout conditions
+5. Docker Compose provisions the application stack
+6. Health checks validate service readiness
+7. Metrics and audit logs provide observability and traceability
+
+---
+
+# High-Level Architecture
+
+```text
+                +-------------------+
+                |   manifest.yaml   |
+                +---------+---------+
+                          |
+                          v
+                +-------------------+
+                |    SwiftDeploy    |
+                |       CLI         |
+                +---------+---------+
+                          |
+        +----------------+----------------+
+        |                                 |
+        v                                 v
++---------------+              +----------------+
+| Jinja2 Engine |              | OPA Policies   |
++-------+-------+              +--------+-------+
+        |                               |
+        v                               v
++---------------+              +----------------+
+| nginx.conf    |              | allow / deny   |
+| docker-compose|              +----------------+
++-------+-------+
+        |
+        v
++------------------------------+
+| Docker Deployment Stack      |
+|                              |
+|  +--------+  +------------+  |
+|  | Nginx  |->| FastAPI App|  |
+|  +--------+  +------------+  |
+|         \                    |
+|          \-> OPA Container   |
++------------------------------+
+```
 
 ---
 
@@ -197,6 +246,32 @@ chmod +x swiftdeploy
 
 ---
 
+# Deployment Workflow
+
+```text
+manifest.yaml
+      |
+      v
+swiftdeploy validate
+      |
+      v
+OPA Policy Checks
+      |
+      v
+Generate Configs
+      |
+      v
+docker-compose up
+      |
+      v
+Health Checks (/healthz)
+      |
+      v
+Deployment Success
+```
+
+---
+
 # CLI Commands
 
 ## Initialize Configuration
@@ -260,7 +335,7 @@ curl http://127.0.0.1:8080/healthz
 
 ## Promote Deployment Mode
 
-Switch between stable and canary deployment modes:
+Switch between stable and canary deployment modes.
 
 ### Promote Canary
 
@@ -284,6 +359,28 @@ Expected response header:
 
 ```text
 X-Mode: canary
+```
+
+---
+
+# Canary Deployment Flow
+
+```text
+        Stable Traffic
+              |
+              v
+        +-------------+
+        |   Nginx     |
+        +------+------+ 
+               |
+      +--------+--------+
+      |                 |
+      v                 v
+ Stable App       Canary App
+                         |
+                         v
+                Chaos Injection
+               (slow/error modes)
 ```
 
 ---
@@ -547,8 +644,6 @@ SwiftDeploy was designed to reflect real-world DevOps delivery practices:
 
 **Damilola Olowookere**
 HNG DevOps Internship — Stage 4A & Stage 4B
-
-Blog post: https://medium.com/@mosesajayi458/building-swiftdeploy-a-cli-deployment-tool-with-canary-releases-chaos-engineering-99b407796a1a?postPublishedType=repub
 
 ---
 
