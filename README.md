@@ -14,7 +14,6 @@ It automates:
 
 This project satisfies all requirements for the **HNG DevOps Stage 4A Task (SwiftDeploy)**.
 
----
 
 ## ✅ Requirement Mapping (What This Project Delivers)
 
