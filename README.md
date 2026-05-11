@@ -547,7 +547,7 @@ SwiftDeploy was designed to reflect real-world DevOps delivery practices:
 
 **Damilola Olowookere**
 HNG DevOps Internship — Stage 4A & Stage 4B
-
+Blog post: https://medium.com/@mosesajayi458/building-swiftdeploy-a-cli-deployment-tool-with-canary-releases-chaos-engineering-99b407796a1a?postPublishedType=repub
 ---
 
 # Conclusion
