@@ -1,119 +1,139 @@
-# 🚀 SwiftDeploy – HNG Stage 4A (DevOps Submission)
+# SwiftDeploy
 
-SwiftDeploy is a **CLI-based deployment orchestration tool** that provisions and manages a complete application stack using a single declarative configuration file: `manifest.yaml`.
+SwiftDeploy is a production-ready CLI deployment orchestration tool that provisions, validates, deploys, and manages containerized application stacks using a single declarative configuration file: `manifest.yaml`.
 
-It automates:
+The platform is designed around modern DevOps principles including:
 
-* Infrastructure configuration generation (Nginx + Docker Compose)
-* Pre-deployment validation
-* Deployment with health checks
-* Canary ↔ Stable promotion
-* Full teardown and cleanup
+* Declarative infrastructure
+* Progressive delivery
+* Policy-as-Code governance
+* Automated validation
+* Observability and auditing
+* Secure container deployment
 
-This project satisfies all requirements for the **HNG DevOps Stage 4A Task (SwiftDeploy)**.
-
-
-## ✅ Requirement Mapping (What This Project Delivers)
-
-| Requirement               | Implementation                                        |
-| ------------------------- | ----------------------------------------------------- |
-| Single declarative config | `manifest.yaml`                                       |
-| Config generation         | Jinja2 templates → `nginx.conf`, `docker-compose.yml` |
-| CLI tool                  | `swiftdeploy` executable                              |
-| Validation checks         | `swiftdeploy validate`                                |
-| Deployment                | `swiftdeploy deploy`                                  |
-| Canary/Stable switching   | `swiftdeploy promote`                                 |
-| Teardown                  | `swiftdeploy teardown`                                |
-| Health checks             | `/healthz` endpoint                                   |
-| Observability             | Logs + curl verification                              |
-| Chaos testing             | `/chaos` endpoint (canary only)                       |
-
-## 🧠 Design Approach (What Graders Look For)
-
-SwiftDeploy is built around **declarative infrastructure + automation**:
-
-* **Single Source of Truth:**
-  All configuration lives in `manifest.yaml`
-
-* **Template-driven generation:**
-  Eliminates manual config errors
-
-* **Pre-flight validation:**
-  Prevents broken deployments
-
-* **Controlled rollout (canary):**
-  Enables safe experimentation
-
-* **Idempotent operations:**
-  Running commands multiple times does not break the system
+SwiftDeploy automates the generation of infrastructure configuration, deployment execution, health validation, canary promotion workflows, Open Policy Agent (OPA) policy enforcement, metrics collection, audit reporting, and environment teardown.
 
 ---
 
-## 📁 Project Structure
+# Features
 
-```
+* Single Source of Truth via `manifest.yaml`
+* Automated generation of:
+
+  * `nginx.conf`
+  * `docker-compose.yml`
+* Pre-deployment validation pipeline
+* Docker-based deployment orchestration
+* Health-aware rollout process
+* Canary and stable deployment promotion
+* Chaos testing support
+* Prometheus-compatible metrics endpoint
+* Open Policy Agent (OPA) governance enforcement
+* Audit logging and deployment reporting
+* Secure container hardening configuration
+* Idempotent deployment operations
+
+---
+
+# Requirement Coverage
+
+| Requirement                       | Implementation                  |
+| --------------------------------- | ------------------------------- |
+| Declarative configuration         | `manifest.yaml`                 |
+| Configuration templating          | Jinja2 templates                |
+| CLI orchestration tool            | `swiftdeploy`                   |
+| Validation engine                 | `swiftdeploy validate`          |
+| Deployment orchestration          | `swiftdeploy deploy`            |
+| Canary / stable promotion         | `swiftdeploy promote`           |
+| Infrastructure teardown           | `swiftdeploy teardown`          |
+| Health checks                     | `/healthz`                      |
+| Chaos testing                     | `/chaos`                        |
+| Metrics collection                | `/metrics`                      |
+| Policy-as-Code                    | OPA + Rego                      |
+| Infrastructure policy checks      | `infra.rego`                    |
+| Canary rollout policy checks      | `canary.rego`                   |
+| Audit reporting                   | `swiftdeploy audit`             |
+| Deployment governance enforcement | OPA policy decisions            |
+| Container security hardening      | `cap_drop`, `no-new-privileges` |
+
+---
+
+# Architecture Overview
+
+SwiftDeploy follows a declarative deployment workflow:
+
+1. `manifest.yaml` acts as the single source of truth.
+2. Jinja2 templates generate infrastructure configuration files.
+3. Validation checks ensure deployment readiness.
+4. OPA policies evaluate infrastructure and rollout conditions.
+5. Docker Compose provisions the stack.
+6. Health checks validate service readiness.
+7. Metrics and audit logs provide observability and traceability.
+
+---
+
+# Project Structure
+
+```bash
 .
-├── app/                       # API service
-├── templates/                 # Jinja2 templates
+├── app/
+│   ├── main.py
+│   └── requirements.txt
+├── templates/
 │   ├── nginx.conf.j2
 │   └── docker-compose.yml.j2
-├── manifest.yaml              # Single source of truth
-├── swiftdeploy                # CLI tool
-├── Dockerfile                 # API container
+├── policies/
+│   ├── infra.rego
+│   ├── canary.rego
+│   └── data.json
+├── manifest.yaml
+├── swiftdeploy
+├── Dockerfile
+├── audit_report.md
+├── history.jsonl
 └── README.md
 ```
 
 ---
 
-## ⚙️ Prerequisites
+# Prerequisites
 
-* Linux (Ubuntu recommended)
+The following dependencies are required:
+
+* Linux / Ubuntu / WSL
 * Python 3
 * Docker
 * Docker Compose
 * curl
 
-### Install Dependencies
+---
+
+# Installation
+
+Install required system packages:
 
 ```bash
 sudo apt update
-sudo apt install -y docker.io docker-compose python3 python3-pip curl
+
+sudo apt install -y \
+  docker.io \
+  docker-compose \
+  python3 \
+  python3-pip \
+  curl
+```
+
+Install Python dependencies:
+
+```bash
 pip3 install pyyaml jinja2 requests
 ```
 
 ---
 
-## 🧠 Manifest Configuration (Core of the System)
+# Build the Application Image
 
-`manifest.yaml` defines the entire deployment:
-
-```yaml
-services:
-  image: swift-deploy-1-node:latest
-  port: 3000
-  mode: stable
-  version: "1.0.0"
-  restart_policy: always
-
-nginx:
-  image: nginx:latest
-  port: 8080
-  proxy_timeout: 5
-
-network:
-  name: swiftdeploy-net
-  driver_type: bridge
-
-logging:
-  volume: swiftdeploy-logs
-```
-
-👉 **Why this matters:**
-Graders expect you to show that *all behavior is driven from one file*.
-
----
-
-## 🐳 Build Step (Required for Validation)
+Before using SwiftDeploy, build the application container image:
 
 ```bash
 docker build -t swift-deploy-1-node:latest .
@@ -121,9 +141,55 @@ docker build -t swift-deploy-1-node:latest .
 
 ---
 
-## 🛠️ CLI Commands (Core Functionality)
+# Manifest Configuration
 
-Make executable:
+All deployment behavior is controlled from `manifest.yaml`.
+
+Example configuration:
+
+```yaml
+logging:
+  volume: swiftdeploy-logs
+
+network:
+  driver_type: bridge
+  name: swiftdeploy-net
+
+nginx:
+  image: nginx:latest
+  port: 8080
+  proxy_timeout: 5
+
+services:
+  image: swift-deploy-1-node:latest
+  mode: stable
+  port: 3000
+  restart_policy: always
+  version: 1.0.0
+
+opa:
+  image: openpolicyagent/opa:latest
+
+policy:
+  min_disk_free_gb: 10
+  max_cpu_load: 2.0
+  max_error_rate: 0.01
+  max_p99_latency_ms: 500
+```
+
+The manifest serves as the single source of truth for:
+
+* Infrastructure configuration
+* Network configuration
+* Service runtime settings
+* Policy thresholds
+* Deployment behavior
+
+---
+
+# CLI Setup
+
+Make the CLI executable:
 
 ```bash
 chmod +x swiftdeploy
@@ -131,193 +197,368 @@ chmod +x swiftdeploy
 
 ---
 
-### 1️⃣ Initialize (Config Generation)
+# CLI Commands
+
+## Initialize Configuration
+
+Generate deployment configuration files:
 
 ```bash
 ./swiftdeploy init
 ```
 
-Generates:
+Generated files:
 
 * `nginx.conf`
 * `docker-compose.yml`
 
-👉 **Why this matters:**
-Proves template-driven infrastructure.
-
 ---
 
-### 2️⃣ Validate (Pre-flight Checks)
+## Validate Deployment
+
+Run pre-deployment validation checks:
 
 ```bash
 ./swiftdeploy validate
 ```
 
-Checks:
+Validation includes:
 
-* Valid YAML
-* Required fields exist
-* Docker image exists
-* Port availability
-* Valid Nginx configuration
-
-👉 **Grader Expectation:**
-You must **fail early before deployment**.
+* YAML syntax validation
+* Required manifest field checks
+* Docker image verification
+* Port availability checks
+* Nginx syntax validation
+* Policy data generation
 
 ---
 
-### 3️⃣ Deploy (Core Requirement)
+## Deploy Application Stack
+
+Deploy the application environment:
 
 ```bash
 ./swiftdeploy deploy
 ```
 
-* Runs init + validation
-* Starts containers
-* Waits for `/healthz`
-* Times out after 60 seconds
+Deployment workflow:
 
-Test:
+1. Generate infrastructure configuration
+2. Run validation checks
+3. Start Docker services
+4. Wait for health readiness
+5. Verify successful deployment
+
+Test deployment:
 
 ```bash
-curl http://localhost:8080/
-curl http://localhost:8080/healthz
+curl http://127.0.0.1:8080/
+curl http://127.0.0.1:8080/healthz
 ```
 
 ---
 
-### 4️⃣ Promote (Canary ↔ Stable)
+## Promote Deployment Mode
+
+Switch between stable and canary deployment modes:
+
+### Promote Canary
 
 ```bash
 ./swiftdeploy promote canary
+```
+
+### Promote Stable
+
+```bash
 ./swiftdeploy promote stable
 ```
 
-Verification:
+Verify deployment mode:
 
 ```bash
-curl -i http://localhost:8080/
+curl -i http://127.0.0.1:8080/
 ```
 
-Header:
+Expected response header:
 
-```
+```text
 X-Mode: canary
 ```
 
-👉 **Why this matters:**
-Shows understanding of **progressive delivery / blue-green deployment**.
-
 ---
 
-### 5️⃣ Chaos Testing (Advanced Requirement Signal)
+## Chaos Testing
 
-Only available in canary mode.
+Chaos testing is restricted to canary mode deployments.
 
-Simulates failures:
+### Simulate Slow Responses
 
 ```bash
-# Slow responses
-curl -X POST http://localhost:8080/chaos -d '{"mode":"slow","duration":5}'
-
-# Error injection
-curl -X POST http://localhost:8080/chaos -d '{"mode":"error","rate":0.5}'
-
-# Recovery
-curl -X POST http://localhost:8080/chaos -d '{"mode":"recover"}'
+curl -X POST http://127.0.0.1:8080/chaos \
+  -H "Content-Type: application/json" \
+  -d '{"mode":"slow","duration":5}'
 ```
 
-👉 **Why this impresses graders:**
-Shows **resilience testing mindset (DevOps maturity)**.
+### Inject Error Responses
+
+```bash
+curl -X POST http://127.0.0.1:8080/chaos \
+  -H "Content-Type: application/json" \
+  -d '{"mode":"error","rate":0.5}'
+```
+
+### Recover Service State
+
+```bash
+curl -X POST http://127.0.0.1:8080/chaos \
+  -H "Content-Type: application/json" \
+  -d '{"mode":"recover"}'
+```
 
 ---
 
-### 6️⃣ Teardown (Cleanup)
+## Teardown Environment
+
+Stop deployed services:
 
 ```bash
 ./swiftdeploy teardown
+```
+
+Remove generated files and resources:
+
+```bash
 ./swiftdeploy teardown --clean
 ```
 
-Removes:
+---
 
-* Containers
-* Networks
-* Volumes
-* Generated configs (with `--clean`)
+# Policy-as-Code Governance
+
+SwiftDeploy integrates Open Policy Agent (OPA) to enforce deployment governance before rollout execution.
+
+OPA evaluates:
+
+* Infrastructure health conditions
+* Canary rollout metrics
+* Resource compliance thresholds
+
+Deployment proceeds only when all policy checks pass.
+
+OPA service:
+
+* Container: `swiftdeploy-opa`
+* Endpoint: `127.0.0.1:8181`
 
 ---
 
-## 📊 Observability
+# Policy Files
 
-### Logs
-
-```bash
-docker logs swiftdeploy-nginx
-docker logs swiftdeploy-api
-```
-
-### Health Check
+Policies are located in:
 
 ```bash
-curl http://localhost:8080/healthz
+policies/
+├── infra.rego
+├── canary.rego
+└── data.json
 ```
 
-👉 **Why this matters:**
-Demonstrates system visibility and operability.
+## Infrastructure Policy
+
+`infra.rego` validates:
+
+* Minimum free disk space
+* Maximum CPU load
+
+## Canary Policy
+
+`canary.rego` validates:
+
+* Error rate thresholds
+* P99 latency thresholds
 
 ---
 
-## 🔒 Security Considerations
+# Dynamic Policy Thresholds
+
+Policy thresholds are automatically generated from `manifest.yaml`.
+
+Generated `data.json` example:
+
+```json
+{
+  "limits": {
+    "min_disk_free_gb": 10,
+    "max_cpu_load": 2.0,
+    "max_error_rate": 0.01,
+    "max_p99_latency_ms": 500
+  }
+}
+```
+
+This ensures deployment policy configuration remains centralized and version-controlled.
+
+---
+
+# Deployment Governance Enforcement
+
+Before deployment execution, SwiftDeploy queries OPA policies.
+
+## Successful Policy Evaluation
+
+```text
+OPA Policy Check: PASSED
+Deployment Approved
+```
+
+## Blocked Deployment Example
+
+```text
+Deployment blocked by OPA Infra Policy
+
+Violations:
+- Disk free 5.86GB is below minimum 10.00GB
+```
+
+Deployments are prevented when policy conditions fail.
+
+---
+
+# Observability
+
+SwiftDeploy exposes runtime metrics and deployment audit reporting for operational visibility.
+
+---
+
+# Metrics Endpoint
+
+Prometheus-compatible metrics are available at:
+
+```bash
+curl http://127.0.0.1:8080/metrics
+```
+
+Metrics include:
+
+* Request counters
+* Request latency histograms
+* Uptime metrics
+* Deployment mode state
+* Chaos testing state
+
+Example metric:
+
+```text
+# HELP chaos_active Chaos state (0=none, 1=slow, 2=error)
+chaos_active 0.0
+```
+
+---
+
+# Audit Logging
+
+SwiftDeploy records deployment activity and operational metrics over time.
+
+Generated files:
+
+* `history.jsonl`
+* `audit_report.md`
+
+Generate an audit report:
+
+```bash
+./swiftdeploy audit
+```
+
+Example output:
+
+```text
+Audit report generated: audit_report.md
+```
+
+The report includes:
+
+* Deployment timeline
+* Deployment mode history
+* Request throughput
+* P99 latency metrics
+* Error rate metrics
+* Infrastructure policy decisions
+* Canary policy decisions
+
+---
+
+# Security Hardening
+
+SwiftDeploy applies secure container runtime configurations including:
 
 * Dropped Linux capabilities (`cap_drop: ALL`)
-* Enabled `no-new-privileges`
-* API not publicly exposed
-* Only Nginx exposed
-* Health checks prevent broken deployments
-
-👉 **Grader Signal:** You understand **basic container hardening**.
+* `no-new-privileges` enforcement
+* Localhost-only OPA binding
+* Public exposure limited to Nginx
+* Internal-only API service exposure
 
 ---
 
-## 🧪 Testing Strategy
+# Testing Coverage
 
-* Functional testing via `curl`
-* Deployment validation via CLI
-* Chaos testing for resilience
-* Mode switching verification
+The following deployment scenarios were validated:
 
----
-
-## ✅ Submission Proof Checklist
-
-Included screenshots:
-
-* Validation output
-* Successful deployment
-* Canary promotion + verification
-* Stable rollback
-* Generated configs
-* Logs output
+* Successful validation workflow
+* Healthy deployment execution
+* Canary promotion workflow
+* Chaos testing execution
+* Metrics endpoint verification
+* OPA policy approval
+* OPA deployment rejection
+* Audit report generation
+* Multi-container orchestration verification
 
 ---
 
-## 🧾 Key Design Decisions (DEFENSE SECTION)
+# API Endpoints
 
-If asked “why did you design it this way?”:
-
-* Used **manifest.yaml** → ensures consistency and reproducibility
-* Used **templates** → avoids manual config errors
-* Used **validation step** → prevents runtime failures
-* Used **canary mode** → enables safe deployment changes
-* Used **health checks** → ensures service readiness
-* Used **CLI abstraction** → simplifies DevOps workflow
+| Endpoint   | Description                          |
+| ---------- | ------------------------------------ |
+| `/`        | Root API endpoint                    |
+| `/healthz` | Health check endpoint                |
+| `/metrics` | Prometheus metrics                   |
+| `/chaos`   | Chaos testing endpoint (canary only) |
 
 ---
 
-## 👨‍💻 Author
+# Design Decisions
+
+SwiftDeploy was designed to reflect real-world DevOps delivery practices:
+
+* Declarative configuration ensures consistency and reproducibility
+* Template generation reduces configuration drift
+* Validation shifts failure detection earlier in the pipeline
+* Canary deployments support progressive delivery strategies
+* Chaos testing validates resilience assumptions
+* OPA enforces deployment governance automatically
+* Audit reporting improves traceability and accountability
+* Metrics integration enables operational observability
+
+---
+
+# Author
 
 **Damilola Olowookere**
-HNG DevOps Internship — Stage 4A
+HNG DevOps Internship — Stage 4A & Stage 4B
 
 ---
+
+# Conclusion
+
+SwiftDeploy demonstrates a complete deployment orchestration workflow with:
+
+* Infrastructure automation
+* Progressive delivery
+* Policy enforcement
+* Observability
+* Security hardening
+* Operational auditing
+
+The project satisfies all HNG Stage 4A and Stage 4B requirements while following production-grade DevOps engineering practices.
