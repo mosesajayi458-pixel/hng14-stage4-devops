@@ -1,5 +1,3 @@
----
-
 # 🚀 SwiftDeploy – HNG Stage 4A (DevOps Submission)
 
 SwiftDeploy is a **CLI-based deployment orchestration tool** that provisions and manages a complete application stack using a single declarative configuration file: `manifest.yaml`.
@@ -29,8 +27,6 @@ This project satisfies all requirements for the **HNG DevOps Stage 4A Task (Swif
 | Health checks             | `/healthz` endpoint                                   |
 | Observability             | Logs + curl verification                              |
 | Chaos testing             | `/chaos` endpoint (canary only)                       |
-
----
 
 ## 🧠 Design Approach (What Graders Look For)
 
